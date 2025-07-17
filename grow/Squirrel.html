@@ -1,0 +1,1515 @@
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>다람쥐의 도토리 목장</title>
+    <style>
+      body {
+        font-family: "Arial", sans-serif;
+        background: linear-gradient(to bottom, #aed6f1, #f0f8ff);
+        margin: 0;
+        padding: 0;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+        color: #333;
+      }
+      #game-container {
+        max-width: 900px;
+        width: 95%;
+        margin: 20px auto;
+        padding: 20px;
+        background: #fff;
+        border-radius: 15px;
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+        position: relative;
+        overflow: hidden; /* 미니게임 도토리가 밖으로 나가지 않도록 */
+        display: none; /* 초기에는 숨김 */
+      }
+      #start-screen {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+        background: linear-gradient(to bottom, #aed6f1, #f0f8ff);
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 1001; /* 게임 컨테이너보다 위에 */
+      }
+      #start-screen h1 {
+        font-size: 3em;
+        color: #588e2c;
+        margin-bottom: 30px;
+        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+      }
+      #start-button {
+        padding: 15px 30px;
+        font-size: 1.5em;
+        background-color: #4caf50;
+        color: white;
+        border: none;
+        border-radius: 10px;
+        cursor: pointer;
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        transition: background-color 0.3s ease, transform 0.2s ease;
+      }
+      #start-button:hover {
+        background-color: #45a049;
+        transform: translateY(-3px);
+      }
+      #start-button:active {
+        transform: translateY(0);
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+      }
+
+      h1 {
+        text-align: center;
+        color: #588e2c;
+        margin-bottom: 20px;
+        font-size: 2.2em;
+        text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.1);
+      }
+      #status {
+        display: flex;
+        justify-content: space-around;
+        background: #e6ffe6;
+        padding: 10px 0;
+        border-radius: 10px;
+        margin-bottom: 15px;
+        font-size: 1.1em;
+        font-weight: bold;
+        color: #38761d;
+        border: 1px solid #c8e6c9;
+      }
+      #status div {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+      }
+      #trees-container {
+        background: #d4f7b4;
+        padding: 15px;
+        border-radius: 10px;
+        margin-bottom: 20px;
+        border: 1px solid #b2df95;
+      }
+      #trees {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+        gap: 12px;
+      }
+      .tree {
+        background: #90ee90;
+        border: 3px solid #3cb371;
+        border-radius: 10px;
+        padding: 15px 10px;
+        text-align: center;
+        font-weight: bold;
+        color: #2e8b57;
+        cursor: pointer;
+        transition: transform 0.1s ease-in-out;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      }
+      .tree:hover {
+        transform: translateY(-3px);
+      }
+      .tree.selected {
+        border-color: #ff4500;
+        box-shadow: 0 0 0 3px #ff4500;
+      }
+      #items-container,
+      #minigame-input-container {
+        /* 활동칸이 사라지면서 #actions-container 제거 */
+        background: #ffe0b2;
+        padding: 15px;
+        border-radius: 10px;
+        margin-bottom: 20px;
+        border: 1px solid #ffcc80;
+      }
+      h2 {
+        color: #e65100;
+        margin-top: 0;
+        margin-bottom: 15px;
+        font-size: 1.5em;
+        text-align: center;
+      }
+      #items button {
+        /* #actions button 스타일 제거 */
+        padding: 10px 15px;
+        margin: 5px;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: bold;
+        transition: background-color 0.2s, transform 0.1s;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        position: relative; /* 툴팁을 위한 relative */
+      }
+      #items button .tooltip {
+        /* 툴팁 스타일 */
+        visibility: hidden;
+        width: 200px;
+        background-color: rgba(0, 0, 0, 0.8);
+        color: #fff;
+        text-align: center;
+        border-radius: 6px;
+        padding: 8px 10px;
+        position: absolute;
+        z-index: 1;
+        bottom: 125%; /* 버튼 위로 */
+        left: 50%;
+        margin-left: -100px; /* 중앙 정렬 */
+        opacity: 0;
+        transition: opacity 0.3s;
+        font-size: 0.8em;
+        line-height: 1.4;
+      }
+      #items button .tooltip::after {
+        /* 툴팁 꼬리 */
+        content: "";
+        position: absolute;
+        top: 100%;
+        left: 50%;
+        margin-left: -5px;
+        border-width: 5px;
+        border-style: solid;
+        border-color: rgba(0, 0, 0, 0.8) transparent transparent transparent;
+      }
+      #items button:hover .tooltip {
+        /* 호버 시 툴팁 보이기 */
+        visibility: visible;
+        opacity: 1;
+      }
+
+      #items button {
+        background: #81c784;
+        color: white;
+      }
+      #items button:hover:not(:disabled) {
+        background: #66bb6a;
+        transform: translateY(-2px);
+      }
+      button:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        background: #cccccc !important;
+      }
+      #log-container {
+        background: #e0f2f7;
+        padding: 15px;
+        border-radius: 10px;
+        border: 1px solid #b3e5fc;
+      }
+      #log {
+        height: 150px;
+        overflow-y: auto;
+        background: #f0faff;
+        padding: 10px;
+        border-radius: 8px;
+        font-size: 0.95em;
+        line-height: 1.6;
+        border: 1px solid #c0e6f7;
+      }
+      .log-message {
+        margin-bottom: 5px;
+      }
+      .log-important {
+        font-weight: bold;
+        color: #d32f2f;
+      }
+      .log-success {
+        color: #388e3c;
+      }
+      /* Popup styles */
+      #popup-overlay,
+      #game-over-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.7);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 1000;
+      }
+      #event-popup,
+      #game-over-popup {
+        background: #fff;
+        padding: 30px;
+        border-radius: 15px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        text-align: center;
+        max-width: 500px;
+        width: 90%;
+        color: #333;
+      }
+      #event-popup h3,
+      #game-over-popup h3 {
+        color: #e65100;
+        margin-top: 0;
+        font-size: 1.8em;
+      }
+      #game-over-popup h3 {
+        color: #f44336;
+        font-size: 2em;
+      }
+      #event-popup p,
+      #game-over-popup p {
+        margin-bottom: 20px;
+        font-size: 1.1em;
+        line-height: 1.6;
+      }
+      #game-over-popup p {
+        margin-bottom: 25px;
+        font-size: 1.2em;
+      }
+      #event-popup .button-group button,
+      #game-over-popup button {
+        background: #4caf50;
+        color: white;
+        padding: 12px 25px;
+        margin: 8px;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 1.1em;
+        font-weight: bold;
+        transition: background-color 0.2s, transform 0.1s;
+      }
+      #event-popup .button-group button:hover:not(:disabled) {
+        background: #388e3c;
+        transform: translateY(-2px);
+      }
+      #event-popup .button-group button.danger {
+        background: #f44336;
+      }
+      #event-popup .button-group button.danger:hover:not(:disabled) {
+        background: #d32f2f;
+      }
+      #game-over-popup button {
+        background: #2196f3;
+      }
+      #game-over-popup button:hover {
+        background: #1976d2;
+      }
+
+      /* Mini-game specific styles */
+      #mini-game-area {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: calc(100% - 150px); /* 입력창 아래까지 */
+        pointer-events: none; /* 기본적으로 클릭 이벤트를 통과시킴 */
+        z-index: 1; /* 다른 UI 요소 뒤에 위치 */
+      }
+      .falling-acorn {
+        position: absolute;
+        width: 60px; /* 도토리 크기 키움 */
+        height: 60px;
+        background-color: #8b4513; /* 도토리 색상 */
+        border-radius: 50% 50% 30% 30% / 50% 50% 70% 70%; /* 도토리 모양 */
+        box-shadow: inset -3px -3px 5px rgba(0, 0, 0, 0.3);
+        cursor: default; /* 클릭 커서 없앰 */
+        pointer-events: auto; /* 클릭 가능하게 함 */
+        z-index: 2; /* 도토리 팝업보다 앞에 */
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        color: white;
+        font-weight: bold;
+        font-size: 0.8em; /* 단어 글자 크기 */
+        text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+      }
+      .falling-acorn.hit {
+        /* 맞춘 도토리 효과 */
+        background-color: #4caf50;
+        transition: all 0.2s ease-out;
+        opacity: 0;
+        transform: scale(1.5);
+      }
+      #minigame-input-container {
+        padding-top: 0; /* 상단 패딩 제거 */
+      }
+      #typing-input-area {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+      #typing-input-area p {
+        margin-bottom: 10px;
+        font-weight: bold;
+        color: #e65100;
+      }
+      #typing-input {
+        width: 80%;
+        padding: 10px;
+        font-size: 1.2em;
+        border: 2px solid #ffcc80;
+        border-radius: 8px;
+        text-align: center;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="start-screen">
+      <h1>🐿️ 다람쥐의 도토리 목장 🌳</h1>
+      <button id="start-button">게임 시작</button>
+    </div>
+
+    <div id="game-container">
+      <h1>🐿️ 다람쥐의 도토리 목장 🌳</h1>
+      <div id="status">
+        <div>일차: <span id="day">1</span>/100</div>
+        <div>도토리: <span id="acorns">0</span></div>
+        <div>시간: <span id="timer">60</span>s</div>
+      </div>
+
+      <div id="trees-container">
+        <h2>내 도토리 나무들</h2>
+        <div id="trees"></div>
+      </div>
+
+      <div id="items-container">
+        <h2>내 아이템 가방</h2>
+        <div id="items"></div>
+      </div>
+
+      <div id="minigame-input-container">
+        <h2>도토리 캐치! ⌨️</h2>
+        <div id="typing-input-area">
+          <p>도토리에 적힌 단어를 입력하고 엔터를 누르세요!</p>
+          <input
+            type="text"
+            id="typing-input"
+            placeholder="여기에 입력하세요..."
+          />
+        </div>
+      </div>
+
+      <div id="log-container">
+        <h2>활동 로그</h2>
+        <div id="log"></div>
+      </div>
+
+      <div id="mini-game-area"></div>
+    </div>
+
+    <div id="popup-overlay" style="display: none">
+      <div id="event-popup">
+        <h3 id="event-title"></h3>
+        <p id="event-message"></p>
+        <div id="event-options" class="button-group"></div>
+      </div>
+    </div>
+
+    <div id="game-over-overlay" style="display: none">
+      <div id="game-over-popup">
+        <h3>게임 오버! 😱</h3>
+        <p id="game-over-message"></p>
+        <button onclick="location.reload()">다시 시작하기</button>
+      </div>
+    </div>
+
+    <script>
+      const MAX_TREES = 8;
+      let day = 1;
+      let acorns = 0;
+      let timer = 60;
+      let trees = [];
+      let festivalActive = false;
+      let probabilityUpgradeCount = 0; // '햇살 한 스푼' 사용 횟수
+      let isGamePaused = true; // 게임 일시정지 상태 (시작 전에는 true)
+
+      const allPossibleItems = [
+        "멧돼지 퇴치용 호루라기",
+        "하늘의 방패 그물",
+        "반짝이는 허수아비",
+        "뱀 물리치는 풀",
+        "튼튼한 방수포",
+        "비료 포대",
+        "도토리 씨앗",
+        "햇살 한 스푼",
+        "결합의 묘목 삽", // 새로운 아이템 추가
+        "빛나는 은화", // 거래 아이템
+        "고급 비단 조각", // 거래 아이템
+        "마력이 깃든 수정", // 거래 아이템
+      ];
+
+      // 아이템 설명 객체
+      const itemDescriptions = {
+        "멧돼지 퇴치용 호루라기":
+          "멧돼지 습격 이벤트 발생 시 사용하여 도토리를 보호합니다.",
+        "하늘의 방패 그물":
+          "독수리 습격 이벤트 발생 시 사용하여 도토리를 보호합니다.",
+        "반짝이는 허수아비":
+          "새떼 습격 이벤트 발생 시 사용하여 도토리를 보호합니다.",
+        "뱀 물리치는 풀":
+          "독사 침입 이벤트 발생 시 사용하여 도토리 손실을 막습니다.",
+        "튼튼한 방수포": "폭우 이벤트 발생 시 사용하여 도토리 손실을 막습니다.",
+        "비료 포대":
+          "도토리 나무를 선택하여 주면 해당 나무의 도토리 생산량이 2배 증가합니다.",
+        "도토리 씨앗": "새로운 도토리 나무 한 그루를 심을 수 있습니다.",
+        "햇살 한 스푼":
+          "모든 도토리 나무의 도토리 생산 확률을 5% 증가시킵니다. (최대 10회 사용 가능)",
+        "결합의 묘목 삽":
+          "두 그루의 도토리 나무를 합쳐 더 강력한 한 그루의 나무로 만듭니다. (생산량과 레벨 합산)",
+        "빛나는 은화": "노인과의 특별한 거래에 사용되는 신비한 은화입니다.",
+        "고급 비단 조각":
+          "여우 상인과의 특별한 거래에 사용되는 아름다운 비단 조각입니다.",
+        "마력이 깃든 수정":
+          "마녀와의 특별한 거래에 사용되는 강력한 수정입니다.",
+      };
+
+      const inventory = {
+        "멧돼지 퇴치용 호루라기": 0,
+        "하늘의 방패 그물": 0,
+        "반짝이는 허수아비": 0,
+        "뱀 물리치는 풀": 0,
+        "튼튼한 방수포": 0,
+        "비료 포대": 0,
+        "도토리 씨앗": 0,
+        "햇살 한 스푼": 0,
+        "결합의 묘목 삽": 0,
+        "빛나는 은화": 0,
+        "고급 비단 조각": 0,
+        "마력이 깃든 수정": 0,
+      };
+
+      // 이벤트 정의 (기획에 맞춰 상세 수정)
+      const eventList = [
+        {
+          type: "disaster",
+          name: "멧돼지의 협박",
+          message: "사나운 멧돼지가 도토리를 요구합니다!",
+          baseCost: 20, // 기본 비용
+          defenseItem: "멧돼지 퇴치용 호루라기",
+          rewards: ["비료 포대", "도토리 씨앗", "햇살 한 스푼"],
+        },
+        {
+          type: "disaster",
+          name: "독수리의 습격",
+          message: "거대한 독수리가 도토리 목장을 노립니다!",
+          baseCost: 30,
+          defenseItem: "하늘의 방패 그물",
+          rewards: ["결합의 묘목 삽", "도토리 씨앗", "튼튼한 방수포"],
+        },
+        {
+          type: "disaster",
+          name: "새떼 습격",
+          message: "수많은 새떼가 도토리를 쪼아먹으려 합니다!",
+          baseCost: 15,
+          defenseItem: "반짝이는 허수아비",
+          rewards: ["뱀 물리치는 풀", "비료 포대", "햇살 한 스푼"],
+        },
+        {
+          type: "threat",
+          name: "독사 침입",
+          message: "독사가 방공호에 침입했습니다! 도토리가 오염될 수 있습니다.",
+          baseLossRate: 0.3, // 기본 손실률
+          defenseItem: "뱀 물리치는 풀",
+        },
+        {
+          type: "threat",
+          name: "폭우",
+          message: "갑작스러운 폭우가 목장의 도토리들을 휩쓸려 합니다!",
+          baseLossRate: 0.3,
+          defenseItem: "튼튼한 방수포",
+        },
+        {
+          type: "opportunity",
+          name: "정체불명의 노인",
+          message: "낡은 옷을 입은 노인이 당신에게 거래를 제안합니다.",
+          costType: "acorns",
+          baseCost: 10,
+          specialItem: "빛나는 은화",
+          specialItemCost: 1,
+          rewards: [
+            "도토리 씨앗",
+            "비료 포대",
+            "결합의 묘목 삽",
+            "햇살 한 스푼",
+          ],
+        },
+        {
+          type: "opportunity",
+          name: "여우 상인",
+          message: "능글맞은 여우 상인이 당신의 물건에 관심을 보입니다.",
+          costType: "acorns",
+          baseCost: 15,
+          specialItem: "고급 비단 조각",
+          specialItemCost: 1,
+          rewards: [
+            "하늘의 방패 그물",
+            "멧돼지 퇴치용 호루라기",
+            "반짝이는 허수아비",
+            "도토리 씨앗",
+          ],
+        },
+        {
+          type: "opportunity",
+          name: "마녀의 거래",
+          message: "신비로운 마녀가 당신에게 강력한 거래를 제안합니다.",
+          costType: "acorns",
+          baseCost: 25,
+          specialItem: "마력이 깃든 수정",
+          specialItemCost: 1,
+          rewards: [
+            "모든 방어 아이템 중 1개",
+            "결합의 묘목 삽",
+            "햇살 한 스푼",
+          ], // 보상 조정
+        },
+        {
+          type: "bonus",
+          name: "숲 축제",
+          message: "숲의 요정들이 축복을 내립니다!",
+        },
+      ];
+
+      // 타자 미니게임 단어 목록 (짧고 간단한 단어 위주)
+      const typingWords = [
+        "나무",
+        "도토리",
+        "숲",
+        "다람쥐",
+        "행복",
+        "열매",
+        "햇살",
+        "바람",
+        "밤",
+        "땅",
+        "자유",
+        "소리",
+        "꿈",
+        "집",
+        "친구",
+        "웃음",
+        "희망",
+        "성장",
+        "강",
+        "산",
+        "하늘",
+        "별",
+        "달",
+        "물",
+        "씨앗",
+        // 3글자 단어 추가
+        "사과",
+        "바나나",
+        "포도",
+        "오렌지",
+        "딸기",
+        "수박",
+        "멜론",
+        "복숭아",
+        "장미",
+        "국화",
+        "해바라기",
+        "튤립",
+        "개나리",
+        "진달래",
+        "벚꽃",
+        "나비",
+        "벌",
+        "잠자리",
+        "개미",
+        "무당벌레",
+        "거미",
+        "지렁이",
+        "병아리",
+        "강아지",
+        "고양이",
+        "송아지",
+        "망아지",
+        "병아리",
+        "오리",
+        "닭",
+        "새",
+        "물고기",
+        "사슴",
+        "곰",
+        "호랑이",
+        "코끼리",
+        "기린",
+        "원숭이",
+        "낙타",
+        "펭귄",
+        "바다",
+        "구름",
+        "이슬",
+        "안개",
+        "햇빛",
+        "달빛",
+        "눈",
+        "비",
+        "무지개",
+        "번개",
+        "천둥",
+        "폭풍",
+        "해일",
+        "화산",
+        "지진",
+        "파도",
+        "모래",
+        "돌",
+        "흙",
+        "바위",
+        "계곡",
+        "절벽",
+        "초원",
+        "사막",
+        "연못",
+        "호수",
+        "섬",
+        "등대",
+        "항구",
+        "뱃놀이",
+        "요정",
+        "마법",
+        "용기",
+        "지혜",
+        "사랑",
+        "우정",
+        "성실",
+        "정직",
+        "친절",
+        "용서",
+        "축복",
+        "선물",
+        "보물",
+        "기적",
+        "행운",
+        "건강",
+        "평화",
+        "재물",
+        "수확",
+        "농부",
+        "농장",
+        "곡식",
+        "열매",
+        "채소",
+        "과일",
+        "가뭄",
+        "홍수",
+        "질병",
+        "전염병",
+        "전쟁",
+        "평화",
+        "재앙",
+        "축복",
+        "탄생",
+        "죽음",
+        "삶",
+        "시간",
+        "공간",
+        "행성",
+        "우주",
+        "은하",
+        "태양",
+        "행성",
+        "혜성",
+        "유성",
+        "광선",
+        "미래",
+        "과거",
+        "현재",
+        "영원",
+        "계절",
+        "봄",
+        "여름",
+        "가을",
+        "겨울",
+        "새벽",
+        "아침",
+        "점심",
+        "저녁",
+        "밤",
+        "오늘",
+        "내일",
+        "어제",
+        "하루",
+        "일년",
+        "백년",
+        "가족",
+        "부모",
+        "형제",
+        "자매",
+        "친구",
+        "이웃",
+        "동료",
+        "선생",
+        "학생",
+        "어른",
+        "아이",
+        "남자",
+        "여자",
+        "사람",
+        "인생",
+        "운명",
+        "도전",
+        "성공",
+        "실패",
+        "용서",
+        "기회",
+        "변화",
+        "성장",
+        "발전",
+      ];
+
+      const startScreen = document.getElementById("start-screen");
+      const startButton = document.getElementById("start-button");
+      const gameContainer = document.getElementById("game-container");
+
+      const container = document.getElementById("trees");
+      const acornSpan = document.getElementById("acorns");
+      const daySpan = document.getElementById("day");
+      const timerSpan = document.getElementById("timer");
+      const logBox = document.getElementById("log");
+      const itemsDiv = document.getElementById("items");
+      // const nextDayBtn = document.getElementById("next-day-btn"); // '밤으로 넘어가기' 버튼 제거
+
+      const popupOverlay = document.getElementById("popup-overlay");
+      const eventPopup = document.getElementById("event-popup");
+      const eventTitle = document.getElementById("event-title");
+      const eventMessage = document.getElementById("event-message");
+      const eventOptions = document.getElementById("event-options");
+
+      const gameOverOverlay = document.getElementById("game-over-overlay");
+      const gameOverPopup = document.getElementById("game-over-popup");
+      const gameOverMessage = document.getElementById("game-over-message");
+
+      const miniGameArea = document.getElementById("mini-game-area"); // 미니게임 영역
+      const typingInput = document.getElementById("typing-input"); // 타자 입력창
+
+      let gameInterval = null; // 초기값을 null로 설정하여 중복 생성 방지
+      let selectedTrees = []; // 나무 합치기 기능용
+      let currentSelectedMode = null; // null, 'fertilizer', 'combine'
+
+      let miniGameAcornInterval = null; // 미니게임 도토리 생성 인터벌
+      let fallingAcorns = []; // 떨어지는 도토리 요소들 (객체로 관리)
+      let animationFrameId = null; // requestAnimationFrame ID (미니게임 애니메이션)
+
+      function log(msg, type = "") {
+        const div = document.createElement("div");
+        div.className = `log-message ${type}`;
+        div.textContent = `[${day}일차] ${msg}`;
+        logBox.prepend(div); // 최신 로그가 위에 오도록
+        if (logBox.children.length > 20) {
+          logBox.removeChild(logBox.lastChild); // 너무 많아지면 오래된 로그 삭제
+        }
+      }
+
+      class Tree {
+        constructor(id, level = 1) {
+          this.id = id; // 나무 식별자
+          this.level = level; // 나무 레벨
+          this.productionPerTick = level; // 1틱(초)당 생산량
+          this.productionProbability = 0.5; // 생산 확률 (0.5 = 50%)
+          this.element = document.createElement("div");
+          this.element.className = "tree";
+          this.element.dataset.id = id;
+          this.element.onclick = () => selectTree(this.id);
+          this.updateDisplay();
+        }
+
+        updateDisplay() {
+          this.element.textContent = `레벨 ${this.level}\n도토리 +${
+            this.productionPerTick
+          }\n확률: ${Math.floor(this.productionProbability * 100)}%`;
+        }
+
+        attemptProduction() {
+          let actualProd = this.productionPerTick;
+          if (festivalActive) {
+            actualProd *= 2; // 축제 효과 적용
+          }
+          if (Math.random() < this.productionProbability) {
+            acorns += actualProd;
+          }
+        }
+      }
+
+      function plantNewTree() {
+        if (trees.length >= MAX_TREES) {
+          log("더 이상 나무를 심을 공간이 없습니다!", "log-important");
+          return false;
+        }
+        const newTreeId =
+          trees.length > 0 ? Math.max(...trees.map((t) => t.id)) + 1 : 0;
+        const newTree = new Tree(newTreeId);
+        trees.push(newTree);
+        renderTrees();
+        log("새싹 도토리 나무를 심었습니다! 🌱", "log-success");
+        return true;
+      }
+
+      function renderTrees() {
+        container.innerHTML = "";
+        trees.forEach((tree) => {
+          tree.updateDisplay();
+          container.appendChild(tree.element);
+        });
+        updateUI();
+      }
+
+      function updateUI() {
+        acornSpan.textContent = Math.floor(acorns);
+        daySpan.textContent = day;
+        renderInventory();
+        // nextDayBtn.disabled = isGamePaused; // '밤으로 넘어가기' 버튼 제거
+      }
+
+      function renderInventory() {
+        itemsDiv.innerHTML = "";
+        for (const key in inventory) {
+          const btn = document.createElement("button");
+          btn.textContent = `${key} (${inventory[key]})`;
+
+          // 툴팁 추가
+          const tooltip = document.createElement("span");
+          tooltip.classList.add("tooltip");
+          tooltip.textContent = itemDescriptions[key] || "설명 없음";
+          btn.appendChild(tooltip);
+
+          btn.disabled = inventory[key] <= 0;
+          // 햇살 한 스푼은 사용 횟수 제한도 반영
+          if (key === "햇살 한 스푼" && probabilityUpgradeCount >= 10) {
+            btn.disabled = true;
+          }
+          btn.onclick = () => useItem(key);
+          itemsDiv.appendChild(btn);
+        }
+      }
+
+      function useItem(item) {
+        if (inventory[item] <= 0) {
+          log(`'${item}'이(가) 부족합니다.`, "log-important");
+          return;
+        }
+
+        switch (item) {
+          case "비료 포대":
+            if (trees.length === 0) {
+              log("비료를 줄 나무가 없습니다.", "log-important");
+              return;
+            }
+            log("비료를 줄 나무를 선택해주세요. (클릭)", "log-important");
+            setSelectedMode("fertilizer");
+            break;
+          case "도토리 씨앗":
+            if (plantNewTree()) {
+              inventory[item]--;
+            }
+            break;
+          case "햇살 한 스푼":
+            if (probabilityUpgradeCount >= 10) {
+              log("생산 확률은 더 이상 높일 수 없습니다!", "log-important");
+              return;
+            }
+            inventory[item]--;
+            probabilityUpgradeCount++;
+            trees.forEach(
+              (t) =>
+                (t.productionProbability = Math.min(
+                  1,
+                  t.productionProbability + 0.05
+                ))
+            );
+            trees.forEach((t) => t.updateDisplay());
+            log("나무 생산 확률이 5% 증가했습니다! ☀️", "log-success");
+            break;
+          case "결합의 묘목 삽":
+            if (trees.length < 2) {
+              log(
+                "나무 합치기는 두 그루 이상의 나무가 필요합니다.",
+                "log-important"
+              );
+              return;
+            }
+            log("합칠 나무 두 그루를 선택해주세요. (클릭)", "log-important");
+            setSelectedMode("combine");
+            break;
+          default: // 방어 아이템 및 거래 아이템은 이벤트 발생 시 사용됨
+            log(`'${item}'은(는) 지금 사용할 수 없습니다.`, "log-important");
+            break;
+        }
+        updateUI();
+      }
+
+      function setSelectedMode(mode) {
+        currentSelectedMode = mode;
+        selectedTrees = [];
+        trees.forEach((t) => t.element.classList.remove("selected")); // 기존 선택 해제
+        log(
+          `[${
+            mode === "fertilizer" ? "비료 주기" : "나무 합치기"
+          }] 모드 활성화. 나무를 선택해주세요.`
+        );
+      }
+
+      function selectTree(treeId) {
+        const treeElement = document.querySelector(
+          `.tree[data-id="${treeId}"]`
+        );
+        const treeObj = trees.find((t) => t.id === treeId);
+
+        if (!treeObj) return;
+
+        if (currentSelectedMode === "fertilizer") {
+          if (inventory["비료 포대"] <= 0) {
+            log("비료 포대가 부족합니다.", "log-important");
+            currentSelectedMode = null; // 모드 해제
+            return;
+          }
+          inventory["비료 포대"]--;
+          treeObj.productionPerTick *= 2;
+          treeObj.updateDisplay();
+          log(`선택한 나무의 생산량이 2배가 되었습니다!`, "log-success");
+          currentSelectedMode = null;
+          treeElement.classList.remove("selected"); // 선택 해제
+        } else if (currentSelectedMode === "combine") {
+          if (inventory["결합의 묘목 삽"] <= 0) {
+            log("결합의 묘목 삽이 부족합니다.", "log-important");
+            currentSelectedMode = null; // 모드 해제
+            return;
+          }
+
+          if (!selectedTrees.includes(treeId)) {
+            if (selectedTrees.length < 2) {
+              selectedTrees.push(treeId);
+              treeElement.classList.add("selected");
+              log(`${selectedTrees.length}번째 나무 선택 완료.`, "log-success");
+            }
+
+            if (selectedTrees.length === 2) {
+              combineTrees();
+              currentSelectedMode = null;
+              selectedTrees = []; // 선택 초기화
+            }
+          } else {
+            // 이미 선택된 나무를 다시 클릭하면 선택 해제
+            selectedTrees = selectedTrees.filter((id) => id !== treeId);
+            treeElement.classList.remove("selected");
+            log(`나무 선택 해제.`, "log-important");
+          }
+        }
+        updateUI();
+      }
+
+      function combineTrees() {
+        if (selectedTrees.length !== 2) {
+          log("두 그루의 나무를 선택해야 합니다.", "log-important");
+          return;
+        }
+
+        const [id1, id2] = selectedTrees;
+        const tree1Index = trees.findIndex((t) => t.id === id1);
+        const tree2Index = trees.findIndex((t) => t.id === id2);
+
+        if (tree1Index === -1 || tree2Index === -1) {
+          log("선택된 나무를 찾을 수 없습니다.", "log-important");
+          return;
+        }
+
+        const tree1 = trees[tree1Index];
+        const tree2 = trees[tree2Index];
+
+        // 새로운 나무 생성 (레벨과 생산량 합산)
+        const newTree = new Tree(
+          Math.max(...trees.map((t) => t.id)) + 1, // 새로운 ID 부여
+          tree1.level + tree2.level // 레벨 합산
+        );
+        newTree.productionPerTick =
+          tree1.productionPerTick + tree2.productionPerTick;
+        newTree.productionProbability = Math.max(
+          tree1.productionProbability,
+          tree2.productionProbability
+        ); // 높은 확률 적용 (선택 사항)
+
+        // 합쳐진 나무 제거 및 새 나무 추가
+        // 인덱스가 큰 것부터 삭제해야 splice 시 인덱스 오류가 발생하지 않음
+        trees.splice(Math.max(tree1Index, tree2Index), 1);
+        trees.splice(Math.min(tree1Index, tree2Index), 1);
+        trees.push(newTree);
+
+        inventory["결합의 묘목 삽"]--;
+        log("두 그루의 나무를 합쳤습니다! 🌲", "log-success");
+        renderTrees();
+        updateUI();
+      }
+
+      function showPopup(title, message, options) {
+        eventTitle.textContent = title;
+        eventMessage.textContent = message;
+        eventOptions.innerHTML = "";
+        options.forEach((opt) => {
+          const btn = document.createElement("button");
+          btn.textContent = opt.text;
+          btn.onclick = opt.action;
+          if (opt.isDanger) btn.classList.add("danger");
+          if (opt.isDisabled) btn.disabled = true;
+          eventOptions.appendChild(btn);
+        });
+        popupOverlay.style.display = "flex";
+        pauseGame(); // 팝업 시 게임 일시정지
+      }
+
+      function hidePopup() {
+        popupOverlay.style.display = "none";
+        resumeGame(); // 팝업 닫히면 게임 재개
+        updateUI();
+      }
+
+      function pauseGame() {
+        isGamePaused = true;
+        if (gameInterval) {
+          // gameInterval이 null이 아닐 때만 clearInterval 호출
+          clearInterval(gameInterval);
+          gameInterval = null; // 인터벌 ID 초기화
+        }
+        stopMiniGame(); // 미니게임 정지 (도토리 생성 및 애니메이션 중단)
+        typingInput.disabled = true; // 입력창 비활성화
+      }
+
+      function resumeGame() {
+        if (!isGamePaused) {
+          // 이미 게임이 일시정지 상태가 아니라면 다시 시작하지 않음
+          return;
+        }
+        isGamePaused = false;
+
+        // 메인 게임 타이머 재시작 (이미 게임 오버/승리 상태가 아니라면)
+        if (
+          day <= 100 &&
+          window.getComputedStyle(gameOverOverlay).display !== "flex"
+        ) {
+          // gameInterval이 null일 때만 새로 생성하여 중복 방지
+          if (gameInterval === null) {
+            gameInterval = setInterval(() => {
+              timer--;
+              timerSpan.textContent = timer;
+              trees.forEach((t) => t.attemptProduction());
+              updateUI();
+
+              if (timer <= 0) {
+                day++;
+                if (day > 100) {
+                  gameWin();
+                  return;
+                }
+                timer = 60;
+                log(`=== ${day}일차 아침 ===`, "log-important");
+                triggerDailyEvent(); // 이벤트 발생 함수 호출 (매일 발생)
+              }
+            }, 1000);
+          }
+          startMiniGame(); // 미니게임 재시작
+          typingInput.disabled = false; // 입력창 활성화
+          typingInput.focus(); // 입력창에 자동 포커스
+        }
+      }
+
+      function triggerDailyEvent() {
+        // '특별한 일 없는 날'을 없애고 무조건 이벤트 발생
+        const randomEvent =
+          eventList[Math.floor(Math.random() * eventList.length)];
+        handleEvent(randomEvent);
+      }
+
+      function handleEvent(ev) {
+        log(`새로운 이벤트 발생: ${ev.name}!`, "log-important");
+        let options = [];
+        const currentCost = ev.baseCost * day; // 일차에 따라 비용 증가
+        const currentLossRate = ev.baseLossRate + day * 0.005; // 일차에 따라 손실률 증가 (최대 0.5)
+
+        switch (ev.type) {
+          case "disaster":
+            const hasDefense = inventory[ev.defenseItem] > 0;
+            const canAfford = acorns >= currentCost;
+
+            options.push({
+              text: `${ev.defenseItem} 사용 (${inventory[ev.defenseItem]}개)`,
+              action: () => {
+                inventory[ev.defenseItem]--;
+                log(
+                  `${ev.defenseItem}을(를) 사용하여 ${ev.name} 방어 성공! 🛡️`,
+                  "log-success"
+                );
+                hidePopup();
+                offerRewardItems(ev.rewards); // 방어 성공 시 보상 선택
+              },
+              isDisabled: !hasDefense,
+            });
+
+            options.push({
+              text: `${currentCost} 도토리 지불`,
+              action: () => {
+                if (acorns >= currentCost) {
+                  acorns -= currentCost;
+                  log(
+                    `${currentCost} 도토리를 지불하여 ${ev.name}을(를) 모면했습니다.`,
+                    "log-important"
+                  );
+                  hidePopup();
+                  offerRewardItems(ev.rewards);
+                } else {
+                  alert("도토리가 부족합니다!");
+                }
+              },
+              isDisabled: !canAfford,
+            });
+
+            if (!hasDefense && !canAfford) {
+              options.push({
+                text: "도망치기 (게임 오버)",
+                action: () =>
+                  gameOver(
+                    `도토리 또는 방어 아이템이 부족하여 ${ev.name}에 당했습니다.`
+                  ),
+                isDanger: true,
+              });
+            }
+            break;
+          case "threat":
+            const hasThreatDefense = inventory[ev.defenseItem] > 0;
+            const actualLoss = Math.min(0.8, currentLossRate); // 최대 손실률 제한
+            const lostAcorns = Math.floor(acorns * actualLoss);
+
+            options.push({
+              text: `${ev.defenseItem} 사용 (${inventory[ev.defenseItem]}개)`,
+              action: () => {
+                inventory[ev.defenseItem]--;
+                log(
+                  `${ev.defenseItem}을(를) 사용하여 ${ev.name}을(를) 막았습니다! 🌧️`,
+                  "log-success"
+                );
+                hidePopup();
+              },
+              isDisabled: !hasThreatDefense,
+            });
+
+            options.push({
+              text: `${lostAcorns} 도토리 손실 감수`,
+              action: () => {
+                acorns -= lostAcorns;
+                log(
+                  `도토리 ${Math.floor(actualLoss * 100)}%를 손실했습니다.`,
+                  "log-important"
+                );
+                hidePopup();
+              },
+              // 아이템이 있으면 손실 감수 버튼 비활성화 (선택 강제)
+              // 아이템이 없으면 손실 감수 버튼 활성화
+              isDisabled: hasThreatDefense,
+            });
+
+            if (!hasThreatDefense) {
+              options[1].isDisabled = false; // 아이템 없으면 무조건 손실 감수 활성화
+            }
+            break;
+          case "opportunity":
+            const requiredAcorns = ev.baseCost * (1 + day * 0.05); // 일차에 따라 비용 증가
+            const hasSpecialItem =
+              inventory[ev.specialItem] >= ev.specialItemCost;
+
+            options.push({
+              text: `${ev.specialItem} ${ev.specialItemCost}개 지불 (획득 기회)`,
+              action: () => {
+                inventory[ev.specialItem] -= ev.specialItemCost;
+                log(
+                  `${ev.specialItem}을(를) 지불하고 ${ev.name}과(와) 거래했습니다.`,
+                  "log-success"
+                );
+                hidePopup();
+                offerRewardItems(ev.rewards);
+              },
+              isDisabled: !hasSpecialItem,
+            });
+
+            options.push({
+              text: `${Math.floor(requiredAcorns)} 도토리 지불 (획득 기회)`,
+              action: () => {
+                if (acorns >= requiredAcorns) {
+                  acorns -= requiredAcorns;
+                  log(
+                    `${Math.floor(requiredAcorns)} 도토리를 지불하고 ${
+                      ev.name
+                    }과(와) 거래했습니다.`,
+                    "log-success"
+                  );
+                  hidePopup();
+                  offerRewardItems(ev.rewards);
+                } else {
+                  alert("도토리가 부족합니다!");
+                }
+              },
+              isDisabled: acorns < requiredAcorns,
+            });
+
+            options.push({
+              text: "거래 거부 (아무 일 없음)",
+              action: () => {
+                log(`${ev.name}과의 거래를 거부했습니다.`, "log-important");
+                hidePopup();
+              },
+            });
+            break;
+          case "bonus":
+            // 숲 축제는 선택지가 필요 없으므로 바로 적용하고 팝업 닫기 버튼 추가
+            applyFestival();
+            options.push({
+              text: "확인",
+              action: () => {
+                hidePopup(); // 팝업 닫기
+              },
+            });
+            break;
+        }
+
+        showPopup(`${ev.name} 🔔`, ev.message, options);
+        updateUI();
+      }
+
+      function offerRewardItems(possibleRewards) {
+        let rewardsToOffer = [];
+        let tempPossibleRewards = [...possibleRewards]; // 원본 배열 복사
+
+        // 마녀의 거래 특별 처리: 모든 방어 아이템 중 1개
+        if (tempPossibleRewards.includes("모든 방어 아이템 중 1개")) {
+          const defenseItems = [
+            "멧돼지 퇴치용 호루라기",
+            "하늘의 방패 그물",
+            "반짝이는 허수아비",
+            "뱀 물리치는 풀",
+            "튼튼한 방수포",
+          ];
+          const randomDefenseItem =
+            defenseItems[Math.floor(Math.random() * defenseItems.length)];
+          rewardsToOffer.push(randomDefenseItem);
+          // 나머지 보상 목록에서 "모든 방어 아이템 중 1개" 제거
+          tempPossibleRewards = tempPossibleRewards.filter(
+            (item) => item !== "모든 방어 아이템 중 1개"
+          );
+        }
+
+        // 나머지 보상 아이템 랜덤 선택 (총 3개가 되도록)
+        while (rewardsToOffer.length < 3 && tempPossibleRewards.length > 0) {
+          const randomIndex = Math.floor(
+            Math.random() * tempPossibleRewards.length
+          );
+          const item = tempPossibleRewards[randomIndex];
+          rewardsToOffer.push(item);
+          tempPossibleRewards.splice(randomIndex, 1); // 중복 방지
+        }
+
+        eventTitle.textContent = "보상 선택 🎁";
+        eventMessage.textContent = "원하는 아이템 하나를 선택해주세요!";
+        eventOptions.innerHTML = "";
+
+        rewardsToOffer.forEach((item) => {
+          const btn = document.createElement("button");
+          btn.textContent = item;
+          btn.onclick = () => {
+            if (inventory[item] !== undefined) {
+              inventory[item]++;
+              log(`${item}을(를) 획득했습니다!`, "log-success");
+            } else {
+              log(`알 수 없는 아이템: ${item}`, "log-important");
+            }
+            hidePopup();
+          };
+          eventOptions.appendChild(btn);
+        });
+        popupOverlay.style.display = "flex";
+      }
+
+      function applyFestival() {
+        if (festivalActive) return;
+        festivalActive = true;
+        log(
+          "숲 축제가 시작되었습니다! 모든 나무 생산량이 2배! 🎉",
+          "log-success"
+        );
+        // 실제 생산량은 attemptProduction에서 실시간으로 2배 적용
+        setTimeout(() => {
+          festivalActive = false;
+          log("숲 축제가 끝났습니다.", "log-important");
+          trees.forEach((t) => t.updateDisplay()); // 혹시 모르니 다시 업데이트
+        }, 1000 * 60); // 1분간 지속 (게임 시간 60초)
+      }
+
+      function gameOver(message) {
+        pauseGame(); // 게임 오버 시 게임 정지
+        gameOverMessage.textContent = message;
+        gameOverOverlay.style.display = "flex";
+        log(message, "log-important");
+      }
+
+      function gameWin() {
+        pauseGame(); // 게임 승리 시 게임 정지
+        gameOverOverlay.style.display = "flex";
+        gameOverPopup.querySelector("h3").textContent = "승리! 🏆";
+        gameOverPopup.querySelector("h3").style.color = "#4CAF50";
+        gameOverMessage.textContent = `축하합니다! 100일 동안 도토리 목장을 성공적으로 운영했습니다! 당신은 최고의 다람쥐 족장입니다!`;
+        log("100일 생존 성공! 축하합니다! 🥳", "log-success");
+      }
+
+      // 미니게임 로직 시작
+      function createFallingAcorn() {
+        const word =
+          typingWords[Math.floor(Math.random() * typingWords.length)];
+        const acorn = document.createElement("div");
+        acorn.classList.add("falling-acorn");
+        acorn.textContent = word;
+        acorn.dataset.word = word; // 도토리의 단어를 데이터셋에 저장
+
+        const gameAreaWidth = miniGameArea.offsetWidth;
+        const startX = Math.random() * (gameAreaWidth - 60); // 60px는 도토리 너비
+        acorn.style.left = `${startX}px`;
+        acorn.style.top = `-60px`; // 화면 상단 밖에서 시작
+
+        miniGameArea.appendChild(acorn);
+        fallingAcorns.push({
+          element: acorn,
+          word: word,
+          top: -60,
+          speed: 1 + Math.random() * 1.5,
+        }); // 속도 랜덤화
+      }
+
+      function animateFallingAcorns() {
+        if (isGamePaused) {
+          // 게임이 일시정지 상태면 애니메이션 중단
+          cancelAnimationFrame(animationFrameId);
+          animationFrameId = null; // ID 초기화
+          return;
+        }
+
+        for (let i = fallingAcorns.length - 1; i >= 0; i--) {
+          const acorn = fallingAcorns[i];
+          acorn.top += acorn.speed;
+          acorn.element.style.top = `${acorn.top}px`;
+
+          if (acorn.top > miniGameArea.offsetHeight) {
+            // 화면 밖으로 나가면 제거
+            acorn.element.remove();
+            fallingAcorns.splice(i, 1);
+          }
+        }
+        animationFrameId = requestAnimationFrame(animateFallingAcorns);
+      }
+
+      function startMiniGame() {
+        if (miniGameAcornInterval) clearInterval(miniGameAcornInterval); // 기존 인터벌 클리어
+        miniGameAcornInterval = setInterval(
+          createFallingAcorn,
+          1500 + Math.random() * 1000
+        ); // 1.5~2.5초마다 생성
+        if (animationFrameId === null) {
+          // 애니메이션이 실행 중이 아닐 때만 시작
+          animationFrameId = requestAnimationFrame(animateFallingAcorns); // 애니메이션 시작
+        }
+        typingInput.disabled = false; // 입력창 활성화
+        typingInput.focus(); // 입력창에 포커스
+      }
+
+      function stopMiniGame() {
+        if (miniGameAcornInterval) clearInterval(miniGameAcornInterval);
+        miniGameAcornInterval = null;
+        if (animationFrameId) cancelAnimationFrame(animationFrameId); // requestAnimationFrame 중단
+        animationFrameId = null; // ID 초기화
+        // 모든 떨어지는 도토리 제거
+        fallingAcorns.forEach((acorn) => acorn.element.remove());
+        fallingAcorns = [];
+        typingInput.value = ""; // 입력창 비움
+        typingInput.disabled = true; // 입력창 비활성화
+      }
+
+      // 타자 입력 처리
+      typingInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          if (isGamePaused) return; // 게임 일시정지 중에는 입력 무시
+
+          const typedWord = typingInput.value.trim();
+          let found = false;
+
+          for (let i = fallingAcorns.length - 1; i >= 0; i--) {
+            const acorn = fallingAcorns[i];
+            if (acorn.word === typedWord) {
+              acorns += 1;
+              log(`'${typedWord}' 도토리 1개 획득! 🌰`, "log-success");
+              updateUI();
+
+              // 도토리가 사라지는 시각적 효과
+              acorn.element.classList.add("hit");
+              setTimeout(() => {
+                acorn.element.remove();
+              }, 200); // 0.2초 후 실제 제거
+
+              fallingAcorns.splice(i, 1);
+              found = true;
+              break; // 한 번에 하나의 도토리만 잡기
+            }
+          }
+
+          if (!found) {
+            log(
+              `'${typedWord}' 단어와 일치하는 도토리가 없습니다.`,
+              "log-important"
+            );
+          }
+          typingInput.value = ""; // 입력창 초기화
+        }
+      });
+      // 미니게임 로직 끝
+
+      function initializeGame() {
+        day = 1;
+        acorns = 0;
+        timer = 60;
+        trees = [];
+        festivalActive = false;
+        probabilityUpgradeCount = 0;
+        isGamePaused = true; // 게임 시작 버튼 누르기 전까지는 일시정지 상태
+
+        // 모든 인터벌/애니메이션 요청 초기화
+        if (gameInterval) clearInterval(gameInterval);
+        gameInterval = null;
+        if (miniGameAcornInterval) clearInterval(miniGameAcornInterval);
+        miniGameAcornInterval = null;
+        if (animationFrameId) cancelAnimationFrame(animationFrameId);
+        animationFrameId = null;
+        fallingAcorns = [];
+
+        for (const key in inventory) {
+          inventory[key] = 0;
+        }
+      }
+
+      // 시작 버튼 클릭 이벤트
+      startButton.addEventListener("click", () => {
+        startScreen.style.display = "none"; // 시작 화면 숨김
+        gameContainer.style.display = "block"; // 게임 화면 표시
+
+        // 게임 초기화 및 시작
+        initializeGame(); // 모든 상태 초기화
+        plantNewTree(); // 첫 나무 심기
+        updateUI();
+        log("게임 시작! 🌰", "log-important");
+        resumeGame(); // 게임 시작
+      });
+
+      // 페이지 로드 시 게임 초기 상태 설정 (시작 화면만 보임)
+      initializeGame(); // 이 함수는 게임이 로드될 때 한 번 호출되어야 합니다.
+    </script>
+  </body>
+</html>
